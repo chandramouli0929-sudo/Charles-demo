@@ -15,13 +15,21 @@ from app.llm.base import BaseLLMProvider
 # ─────────────────────────────────────────────────────────────────────────────
 # Gemini Provider
 # ─────────────────────────────────────────────────────────────────────────────
+FALLBACK_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemma-4-26b-a4b-it",
+]
+
+
 class GeminiProvider(BaseLLMProvider):
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-3.6-flash"):
         import google.generativeai as genai  # type: ignore
 
         genai.configure(api_key=api_key)
         self._model_name = model
-        self._client = genai.GenerativeModel(model)
         self._genai = genai
 
     @property
@@ -40,8 +48,31 @@ class GeminiProvider(BaseLLMProvider):
             temperature=temperature,
             max_output_tokens=max_tokens,
         )
-        response = self._client.generate_content(prompt, generation_config=config)
-        return response.text or ""
+
+        models_to_try = [self._model_name] + [m for m in FALLBACK_MODELS if m != self._model_name]
+        last_error = None
+
+        for m_name in models_to_try:
+            try:
+                client = self._genai.GenerativeModel(m_name)
+                response = client.generate_content(prompt, generation_config=config)
+                if response and response.text:
+                    if m_name != self._model_name:
+                        logger.info("Auto-switched from %s to available model: %s", self._model_name, m_name)
+                    return response.text
+            except Exception as exc:
+                err_str = str(exc).lower()
+                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+                    logger.warning("Model %s quota exceeded, trying fallback...", m_name)
+                    last_error = exc
+                    continue
+                logger.error("Gemini call error on %s: %s", m_name, exc)
+                last_error = exc
+                continue
+
+        if last_error:
+            raise last_error
+        return ""
 
     def chat_json(
         self,

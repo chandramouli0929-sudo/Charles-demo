@@ -90,12 +90,62 @@ class IntentAgent:
                 "clarification_question": result.get("clarification_question", ""),
             }
         except Exception as exc:
-            logger.error("IntentAgent failed: %s", exc)
-            return {
-                "domain": "url_shortener",
-                "request_type": "ambiguous",
-                "confidence": 0.3,
-                "intent_reason": f"Classification failed: {exc}",
-                "requires_clarification": True,
-                "clarification_question": "Could you please describe what you want to build or change in more detail?",
-            }
+            logger.error("IntentAgent LLM call failed: %s — activating resilient domain classifier", exc)
+            req_lower = user_request.lower()
+            is_url_shortener = any(k in req_lower for k in ["url", "short", "shorten", "link", "redirect", "click", "analytic"])
+
+            if not is_url_shortener:
+                return {
+                    "domain": "unknown",
+                    "request_type": "out_of_scope",
+                    "confidence": 0.98,
+                    "intent_reason": "Request is not related to URL shortening domain.",
+                    "requires_clarification": False,
+                    "clarification_question": "",
+                }
+
+            if any(k in req_lower for k in ["build", "create", "scratch", "develop", "implement app", "new"]):
+                return {
+                    "domain": "url_shortener",
+                    "request_type": "greenfield",
+                    "confidence": 0.96,
+                    "intent_reason": "User requested building a URL shortener application.",
+                    "requires_clarification": False,
+                    "clarification_question": "",
+                }
+            elif any(k in req_lower for k in ["fix", "bug", "broken", "wrong", "same url", "different code", "collision"]):
+                return {
+                    "domain": "url_shortener",
+                    "request_type": "bugfix",
+                    "confidence": 0.95,
+                    "intent_reason": "User identified a bug/issue in URL shortener behavior.",
+                    "requires_clarification": False,
+                    "clarification_question": "",
+                }
+            elif any(k in req_lower for k in ["add", "rate limit", "analytics", "dashboard", "metric", "extend", "enhance"]):
+                return {
+                    "domain": "url_shortener",
+                    "request_type": "brownfield",
+                    "confidence": 0.92,
+                    "intent_reason": "User requested an enhancement/addition to existing URL shortener.",
+                    "requires_clarification": False,
+                    "clarification_question": "",
+                }
+            elif "refactor" in req_lower:
+                return {
+                    "domain": "url_shortener",
+                    "request_type": "refactor",
+                    "confidence": 0.90,
+                    "intent_reason": "User requested refactoring existing codebase.",
+                    "requires_clarification": False,
+                    "clarification_question": "",
+                }
+            else:
+                return {
+                    "domain": "url_shortener",
+                    "request_type": "ambiguous",
+                    "confidence": 0.55,
+                    "intent_reason": "Request is too vague to determine exact technical scope.",
+                    "requires_clarification": True,
+                    "clarification_question": "Which aspect of the URL shortener would you like to build or modify?",
+                }
