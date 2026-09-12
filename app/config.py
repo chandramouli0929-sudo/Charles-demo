@@ -18,10 +18,10 @@ class Settings(BaseSettings):
 
     # ── LLM ──────────────────────────────────────────────────────────────────
     llm_provider: str = "gemini"          # gemini | openai | anthropic | openai_compatible
-    llm_model: str = "gemini-1.5-flash"
+    llm_model: str = "gemini-flash-latest"
     llm_api_key: str = ""
     llm_base_url: str = ""                # for openai_compatible
-    llm_planner_model: str = "gemini-1.5-pro"
+    llm_planner_model: str = "gemini-flash-latest"
 
     # ── URL Shortener ─────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./agentforge_urlshortener.db"
