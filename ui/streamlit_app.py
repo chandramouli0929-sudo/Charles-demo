@@ -750,6 +750,50 @@ def render_complete_phase():
                         st.error(f"Error creating short URL: {e}")
 
         st.markdown("---")
+        st.markdown("#### 📦 Batch Shorten Multiple URLs")
+        with st.form("batch_url_form"):
+            batch_text_input = st.text_area(
+                "Paste URLs (one URL per line)",
+                value="https://github.com\nhttps://news.ycombinator.com\nhttps://python.org",
+                height=110
+            )
+            batch_submitted = st.form_submit_button("⚡ Batch Shorten All URLs", use_container_width=True)
+
+            if batch_submitted:
+                lines = [line.strip() for line in batch_text_input.splitlines() if line.strip()]
+                if not lines:
+                    st.error("Please enter at least one URL.")
+                else:
+                    try:
+                        batch_payload = {"urls": [{"url": u} for u in lines]}
+                        req_data = pyjson.dumps(batch_payload).encode("utf-8")
+                        req = urllib.request.Request(
+                            f"{base_api_url}/api/v1/urls/batch",
+                            data=req_data,
+                            headers={"Content-Type": "application/json"}
+                        )
+                        with urllib.request.urlopen(req, timeout=8) as resp:
+                            res = pyjson.loads(resp.read().decode())
+                            st.success(f"🎉 Successfully Shortened {res.get('total', 0)} URLs in Batch!")
+                            items = res.get("items", [])
+                            if items:
+                                import pandas as pd
+                                df_data = [
+                                    {
+                                        "Original URL": it.get("original_url"),
+                                        "Short Code": it.get("short_code"),
+                                        "Short URL": it.get("short_url"),
+                                    }
+                                    for it in items
+                                ]
+                                st.dataframe(pd.DataFrame(df_data), use_container_width=True)
+                                if items:
+                                    st.session_state["last_short_code"] = items[0].get("short_code")
+                                    st.session_state["last_url_id"] = items[0].get("id")
+                    except Exception as e:
+                        st.error(f"Error in batch shortening: {e}")
+
+        st.markdown("---")
         st.markdown("#### 2️⃣ Test Redirect & Record Clicks")
         col_red1, col_red2 = st.columns([3, 1])
         with col_red1:
