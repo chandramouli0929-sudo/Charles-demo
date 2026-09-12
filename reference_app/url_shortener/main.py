@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from typing import Any, Dict
+
+# Ensure local modules (api, db, models, services) resolve regardless of current working directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
