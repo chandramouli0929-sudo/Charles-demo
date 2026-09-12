@@ -14,12 +14,38 @@ def get_llm(use_planner: bool = False) -> BaseLLMProvider:
     Args:
         use_planner: If True, use the more powerful planner model.
     """
+    import os
     from app.config import settings
     from app.llm.provider import GeminiProvider, OpenAIProvider, AnthropicProvider
 
-    provider = settings.llm_provider.lower()
-    api_key = settings.llm_api_key
-    model = settings.llm_planner_model if use_planner else settings.llm_model
+    provider = (os.environ.get("LLM_PROVIDER") or settings.llm_provider or "gemini").lower()
+    api_key = (
+        settings.llm_api_key
+        or os.environ.get("LLM_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY")
+        or ""
+    )
+
+    if not api_key:
+        try:
+            import streamlit as st
+            api_key = (
+                st.secrets.get("LLM_API_KEY")
+                or st.secrets.get("llm_api_key")
+                or st.secrets.get("GEMINI_API_KEY")
+                or st.secrets.get("gemini_api_key")
+                or st.secrets.get("OPENAI_API_KEY")
+                or st.secrets.get("openai_api_key")
+                or ""
+            )
+            if not provider or provider == "gemini":
+                provider = (st.secrets.get("LLM_PROVIDER") or st.secrets.get("llm_provider") or provider).lower()
+        except Exception:
+            pass
+
+    model = os.environ.get("LLM_PLANNER_MODEL") or settings.llm_planner_model if use_planner else (os.environ.get("LLM_MODEL") or settings.llm_model)
 
     if provider == "gemini":
         return GeminiProvider(api_key=api_key, model=model)

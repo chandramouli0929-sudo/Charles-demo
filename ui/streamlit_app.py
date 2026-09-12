@@ -19,6 +19,18 @@ import streamlit as st
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
+# Sync Streamlit Cloud secrets into os.environ for seamless cloud deployment
+try:
+    if hasattr(st, "secrets"):
+        import os
+        for k, v in st.secrets.items():
+            if isinstance(v, str):
+                os.environ.setdefault(k, v)
+                os.environ.setdefault(k.lower(), v)
+                os.environ.setdefault(k.upper(), v)
+except Exception:
+    pass
+
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="charles-agentic-ai-demo",
