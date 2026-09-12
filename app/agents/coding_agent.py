@@ -173,7 +173,8 @@ Respond with JSON where keys are file paths and values are complete updated cont
 
     def _get_reference_app_files(self) -> list[dict]:
         """Fallback: return files from the reference app."""
-        ref_path = Path("./reference_app/url_shortener")
+        from app.config import settings
+        ref_path = settings.reference_repo_abs_path
         if not ref_path.exists():
             return []
 

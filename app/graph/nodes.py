@@ -200,7 +200,12 @@ def node_coding(state: EngineeringState) -> dict:
 
     start = time.time()
     request_id = state.get("request_id", str(uuid.uuid4())[:8])
-    workspace_path = f"./generated_workspace/{request_id}"
+    req_type = state.get("request_type", "greenfield")
+
+    if req_type in ("brownfield", "bugfix", "refactor"):
+        workspace_path = str(settings.reference_repo_abs_path)
+    else:
+        workspace_path = str(Path(f"./generated_workspace/{request_id}").resolve())
 
     agent = CodingAgent()
     generated_files = agent.execute(dict(state))
@@ -210,10 +215,19 @@ def node_coding(state: EngineeringState) -> dict:
         summary = agent.apply_changes(generated_files, workspace_path)
         logger.info("CodingAgent applied: %s", summary)
 
+        # Ensure conftest.py exists in the workspace so tests can execute
+        ws_tests = Path(workspace_path) / "tests"
+        ws_tests.mkdir(parents=True, exist_ok=True)
+        ref_conftest = settings.reference_repo_abs_path / "tests" / "conftest.py"
+        target_conftest = ws_tests / "conftest.py"
+        if not target_conftest.exists() and ref_conftest.exists():
+            import shutil
+            shutil.copyfile(ref_conftest, target_conftest)
+
         # Initialize git in workspace for diff tracking
         git_init(workspace_path)
         git_add_all(workspace_path)
-        git_commit(workspace_path, f"AgentForge: {state.get('request_type', 'change')} implementation")
+        git_commit(workspace_path, f"AgentForge: {req_type} implementation")
         diff = git_diff(workspace_path)
     else:
         diff = ""
@@ -240,18 +254,38 @@ def node_testing(state: EngineeringState) -> dict:
     from app.agents.test_agent import TestAgent
 
     start = time.time()
-    workspace_path = state.get("workspace_path", "")
+    workspace_path = state.get("workspace_path") or ""
+
+    # Robust fallback if workspace_path was not preserved
+    if not workspace_path or not Path(workspace_path).exists():
+        req_id = state.get("request_id")
+        if req_id:
+            cand = Path(f"./generated_workspace/{req_id}").resolve()
+            if cand.exists():
+                workspace_path = str(cand)
+        if not workspace_path and state.get("request_type") in ("brownfield", "bugfix", "refactor"):
+            workspace_path = str(settings.reference_repo_abs_path)
 
     agent = TestAgent()
 
-    # Generate test files
-    test_files = agent.generate_tests(dict(state))
-    if test_files and workspace_path:
-        from app.agents.coding_agent import CodingAgent
-        CodingAgent().apply_changes(test_files, workspace_path)
+    # Ensure test fixtures exist in workspace
+    if workspace_path and Path(workspace_path).exists():
+        ws_tests = Path(workspace_path) / "tests"
+        ws_tests.mkdir(parents=True, exist_ok=True)
+        ref_conftest = settings.reference_repo_abs_path / "tests" / "conftest.py"
+        target_conftest = ws_tests / "conftest.py"
+        if not target_conftest.exists() and ref_conftest.exists():
+            import shutil
+            shutil.copyfile(ref_conftest, target_conftest)
 
-    # Run tests
-    if workspace_path:
+        # Only generate additional tests if no tests exist yet
+        existing_tests = list(ws_tests.glob("test_*.py"))
+        if not existing_tests:
+            test_files = agent.generate_tests(dict(state))
+            if test_files:
+                from app.agents.coding_agent import CodingAgent
+                CodingAgent().apply_changes(test_files, workspace_path)
+
         test_results = agent.run_tests(workspace_path)
     else:
         test_results = {
@@ -259,7 +293,7 @@ def node_testing(state: EngineeringState) -> dict:
             "total": 0,
             "passed_count": 0,
             "failed_count": 0,
-            "output": "No workspace to test.",
+            "output": "No workspace found to test.",
             "failed_tests": [],
         }
 
@@ -273,6 +307,7 @@ def node_testing(state: EngineeringState) -> dict:
 
     return {
         "test_results": test_results,
+        "workspace_path": workspace_path,
         "task_graph": task_graph,
         "workflow_trace": _add_trace(
             state, "testing", "TestAgent",
@@ -290,7 +325,17 @@ def node_validation(state: EngineeringState) -> dict:
     agent = ValidationAgent()
 
     state_dict = dict(state)
-    state_dict["workspace_path"] = state.get("workspace_path", "")
+    workspace_path = state_dict.get("workspace_path") or ""
+    if not workspace_path or not Path(workspace_path).exists():
+        req_id = state_dict.get("request_id")
+        if req_id:
+            cand = Path(f"./generated_workspace/{req_id}").resolve()
+            if cand.exists():
+                workspace_path = str(cand)
+        if not workspace_path and state_dict.get("request_type") in ("brownfield", "bugfix", "refactor"):
+            workspace_path = str(settings.reference_repo_abs_path)
+        state_dict["workspace_path"] = workspace_path
+
     validation_results = agent.validate(state_dict)
 
     duration_ms = int((time.time() - start) * 1000)

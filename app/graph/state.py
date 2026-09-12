@@ -88,6 +88,7 @@ class EngineeringState(TypedDict, total=False):
     modification_notes: str        # If user requests changes
 
     # ── Execution ─────────────────────────────────────────────────────────────
+    workspace_path: str
     generated_files: list[GeneratedFile]
     git_diff: str
     branch_name: str

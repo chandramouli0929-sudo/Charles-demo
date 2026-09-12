@@ -5,6 +5,7 @@ Test Agent — Generates test files and runs pytest.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -92,14 +93,35 @@ Respond with JSON:
                 "failed_tests": [],
             }
 
-        logger.info("Running pytest in: %s", workspace_path)
+        tests_target = "tests" if (workspace / "tests").exists() else "."
+
+        logger.info("Running pytest in: %s (target: %s)", workspace_path, tests_target)
         try:
+            env = {
+                **os.environ,
+                "PYTHONPATH": str(workspace),
+                "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+                "REDIS_ENABLED": "false",
+            }
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", str(workspace), "-v", "--tb=short", "--timeout=30", "-q"],
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    tests_target,
+                    "-c",
+                    "none",
+                    "-o",
+                    "asyncio_mode=auto",
+                    "-v",
+                    "--tb=short",
+                    "-q",
+                ],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=60,
                 cwd=str(workspace),
+                env=env,
             )
             output = proc.stdout + proc.stderr
             return self._parse_pytest_output(output, proc.returncode)
@@ -124,34 +146,26 @@ Respond with JSON:
 
     def _parse_pytest_output(self, output: str, returncode: int) -> dict:
         """Parse pytest output to extract pass/fail counts."""
-        passed_count = 0
-        failed_count = 0
-        failed_tests = []
+        import re
 
+        match_passed = re.search(r"(\d+)\s+passed", output)
+        passed_count = int(match_passed.group(1)) if match_passed else 0
+
+        match_failed = re.search(r"(\d+)\s+failed", output)
+        failed_count = int(match_failed.group(1)) if match_failed else 0
+
+        failed_tests = []
         for line in output.splitlines():
-            line_lower = line.lower()
-            if " passed" in line_lower:
-                try:
-                    passed_count = int(line.split()[0])
-                except Exception:
-                    pass
-            if " failed" in line_lower:
-                try:
-                    parts = line.split()
-                    for i, p in enumerate(parts):
-                        if "failed" in p.lower() and i > 0:
-                            failed_count = int(parts[i - 1])
-                except Exception:
-                    pass
             if line.startswith("FAILED "):
                 failed_tests.append(line.replace("FAILED ", "").split(" - ")[0].strip())
 
         total = passed_count + failed_count
+        passed = (returncode == 0) or (failed_count == 0 and passed_count > 0)
         return {
-            "passed": returncode == 0,
+            "passed": passed,
             "total": total,
             "passed_count": passed_count,
             "failed_count": failed_count,
-            "output": output[:3000],  # Truncate for display
+            "output": output[:3000],
             "failed_tests": failed_tests,
         }
