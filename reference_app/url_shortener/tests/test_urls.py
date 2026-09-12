@@ -138,4 +138,4 @@ async def test_create_urls_batch(client: AsyncClient) -> None:
     # Verify redirection works for batch generated items
     r1 = await client.get("/b-one", follow_redirects=False)
     assert r1.status_code == 302
-    assert r1.headers["location"] == "https://batch-one.com"
+    assert r1.headers["location"] == "https://batch-one.com/"
