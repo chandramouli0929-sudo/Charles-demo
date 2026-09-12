@@ -594,7 +594,7 @@ def render_executing_phase():
             ws_path = result.get("workspace_path")
             if ws_path and Path(ws_path, "main.py").exists():
                 try:
-                    import subprocess, sys, time
+                    import subprocess
                     # Free up port 8001 if an older run was holding it
                     if sys.platform == "win32":
                         subprocess.run(
