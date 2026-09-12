@@ -260,9 +260,12 @@ _UI_HTML = """<!DOCTYPE html>
 
     <div class="card">
       <form id="shortenForm" onsubmit="handleShorten(event)">
-        <div class="input-group">
+        <div class="input-group" style="flex-direction: column;">
           <input type="url" id="longUrl" placeholder="https://example.com/very/long/url..." required autofocus />
-          <button type="submit" id="submitBtn">Shorten URL</button>
+          <div style="display: flex; gap: 12px; margin-top: 10px;">
+            <input type="text" id="customAlias" placeholder="Custom alias (optional, e.g. my-promo-link)" style="flex: 1;" />
+            <button type="submit" id="submitBtn">Shorten URL</button>
+          </div>
         </div>
       </form>
 
@@ -313,20 +316,29 @@ _UI_HTML = """<!DOCTYPE html>
     async function handleShorten(e) {
       e.preventDefault();
       const input = document.getElementById('longUrl');
+      const aliasInput = document.getElementById('customAlias');
       const submitBtn = document.getElementById('submitBtn');
       const url = input.value.trim();
+      const custom_alias = aliasInput ? aliasInput.value.trim() : null;
       if (!url) return;
 
       submitBtn.disabled = true;
       submitBtn.innerText = "Shortening...";
 
       try {
+        const payload = { url };
+        if (custom_alias) {
+          payload.custom_alias = custom_alias;
+        }
         const resp = await fetch('/api/v1/urls/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
+          body: JSON.stringify(payload)
         });
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(errData.detail || ("HTTP error " + resp.status));
+        }
         const data = await resp.json();
 
         currentUrlId = data.id;

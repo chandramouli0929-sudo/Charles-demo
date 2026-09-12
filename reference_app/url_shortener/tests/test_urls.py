@@ -87,3 +87,32 @@ async def test_get_url_not_found(client: AsyncClient) -> None:
 async def test_deactivate_url_not_found(client: AsyncClient) -> None:
     response = await client.delete("/api/v1/urls/99999")
     assert response.status_code == 404
+
+
+async def test_create_url_with_custom_alias(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/urls/",
+        json={"url": "https://example.com/custom-test", "custom_alias": "my-custom-link"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["short_code"] == "my-custom-link"
+    assert "my-custom-link" in data["short_url"]
+
+    # Verify redirection works with custom alias
+    redir = await client.get("/my-custom-link", follow_redirects=False)
+    assert redir.status_code == 302
+    assert redir.headers["location"] == "https://example.com/custom-test"
+
+
+async def test_create_url_duplicate_custom_alias(client: AsyncClient) -> None:
+    await client.post(
+        "/api/v1/urls/",
+        json={"url": "https://first.com", "custom_alias": "unique-alias"},
+    )
+    dup = await client.post(
+        "/api/v1/urls/",
+        json={"url": "https://different-second.com", "custom_alias": "unique-alias"},
+    )
+    assert dup.status_code == 400
+    assert "already in use" in dup.json()["detail"]

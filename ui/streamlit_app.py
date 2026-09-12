@@ -715,6 +715,7 @@ def render_complete_phase():
         st.markdown("#### 1️⃣ Create a Short URL")
         with st.form("create_url_form"):
             user_url_input = st.text_input("Destination URL", value="https://www.google.com")
+            user_alias_input = st.text_input("Custom Short Code / Alias (Optional)", value="", placeholder="e.g. my-custom-link")
             submitted = st.form_submit_button("⚡ Shorten URL", use_container_width=True)
 
             if submitted:
@@ -722,7 +723,10 @@ def render_complete_phase():
                     st.error("Please enter a valid URL.")
                 else:
                     try:
-                        req_data = pyjson.dumps({"url": user_url_input.strip()}).encode("utf-8")
+                        payload = {"url": user_url_input.strip()}
+                        if user_alias_input.strip():
+                            payload["custom_alias"] = user_alias_input.strip()
+                        req_data = pyjson.dumps(payload).encode("utf-8")
                         req = urllib.request.Request(
                             f"{base_api_url}/api/v1/urls/",
                             data=req_data,

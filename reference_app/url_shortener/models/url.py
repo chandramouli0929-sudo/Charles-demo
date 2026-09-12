@@ -35,6 +35,7 @@ class URL(Base):
 class URLCreate(BaseModel):
     """Input schema for creating a shortened URL."""
     url: HttpUrl
+    custom_alias: Optional[str] = None
 
 
 class URLResponse(BaseModel):

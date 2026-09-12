@@ -50,25 +50,42 @@ class URLService:
         db: AsyncSession,
         original_url: str,
         base_url: str,
+        custom_alias: Optional[str] = None,
     ) -> URLResponse:
         """
-        Create a shortened URL (idempotent — same URL always returns the same short code).
+        Create a shortened URL (supports user-defined custom alias or deterministic base-62 generation).
         """
-        short_code = self._generate_short_code(original_url)
-
-        # Check for existing record
-        result = await db.execute(select(URL).where(URL.short_code == short_code))
-        existing = result.scalar_one_or_none()
-        if existing is not None:
-            logger.debug("Short code %r already exists — returning existing record", short_code)
-            return URLResponse(
-                id=existing.id,
-                original_url=existing.original_url,
-                short_code=existing.short_code,
-                short_url=f"{base_url}/{existing.short_code}",
-                created_at=existing.created_at,
-                is_active=existing.is_active,
-            )
+        if custom_alias and custom_alias.strip():
+            short_code = custom_alias.strip()
+            # Check if this custom alias already exists
+            result = await db.execute(select(URL).where(URL.short_code == short_code))
+            existing = result.scalar_one_or_none()
+            if existing is not None:
+                if existing.original_url == original_url:
+                    return URLResponse(
+                        id=existing.id,
+                        original_url=existing.original_url,
+                        short_code=existing.short_code,
+                        short_url=f"{base_url}/{existing.short_code}",
+                        created_at=existing.created_at,
+                        is_active=existing.is_active,
+                    )
+                raise ValueError(f"Custom alias '{short_code}' is already in use. Please choose another one.")
+        else:
+            short_code = self._generate_short_code(original_url)
+            # Check for existing record
+            result = await db.execute(select(URL).where(URL.short_code == short_code))
+            existing = result.scalar_one_or_none()
+            if existing is not None:
+                logger.debug("Short code %r already exists — returning existing record", short_code)
+                return URLResponse(
+                    id=existing.id,
+                    original_url=existing.original_url,
+                    short_code=existing.short_code,
+                    short_url=f"{base_url}/{existing.short_code}",
+                    created_at=existing.created_at,
+                    is_active=existing.is_active,
+                )
 
         url_obj = URL(original_url=original_url, short_code=short_code)
         db.add(url_obj)

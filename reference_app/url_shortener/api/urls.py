@@ -41,7 +41,15 @@ async def create_url(
 ) -> URLResponse:
     original_url = str(payload.url)
     base_url = _base_url(request)
-    return await _url_service.create_url(db=db, original_url=original_url, base_url=base_url)
+    try:
+        return await _url_service.create_url(
+            db=db,
+            original_url=original_url,
+            base_url=base_url,
+            custom_alias=payload.custom_alias,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.get("/{url_id}", response_model=URLResponse, summary="Get URL details by ID")
