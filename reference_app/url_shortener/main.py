@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="URL Shortener API",
+    title="charles-agentic-ai-demo URL Shortener API",
     description=(
         "A production-ready URL shortening service built with FastAPI, "
         "SQLAlchemy 2.0 async, and Redis caching."
@@ -47,7 +47,7 @@ _UI_HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AgentForge URL Shortener</title>
+  <title>charles-agentic-ai-demo URL Shortener</title>
   <style>
     :root {
       --bg: #0d1117;
@@ -253,7 +253,7 @@ _UI_HTML = """<!DOCTYPE html>
 <body>
   <div class="container">
     <header>
-      <div class="badge">● AgentForge Live Engine</div>
+      <div class="badge">● charles-agentic-ai-demo Live Engine</div>
       <h1>URL Shortener</h1>
       <p class="subtitle">Enter any long URL below to generate a fast, persistent short link and track real-time clicks.</p>
     </header>
@@ -341,7 +341,7 @@ _UI_HTML = """<!DOCTYPE html>
     <div class="footer-links">
       <a href="/docs" target="_blank">Swagger API Docs</a> • 
       <a href="/health" target="_blank">Health Check</a> • 
-      <a href="http://localhost:8501" target="_blank">AgentForge Control Center</a>
+      <a href="http://localhost:8501" target="_blank">charles-agentic-ai-demo Control Center</a>
     </div>
   </div>
 

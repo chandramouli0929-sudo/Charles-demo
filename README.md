@@ -1,4 +1,4 @@
-# ⚙️ AgentForge
+# ⚙️ charles-agentic-ai-demo
 
 > **Agentic SDLC Workflow Automation Platform**
 >
@@ -10,15 +10,15 @@
 
 ---
 
-## What Is AgentForge?
+## What Is charles-agentic-ai-demo?
 
-AgentForge is a prototype agentic software engineering system that transforms a natural-language software requirement into a reviewable engineering outcome.
+charles-agentic-ai-demo is an agentic software engineering system that transforms a natural-language software requirement into a reviewable, validated engineering outcome.
 
 **The interaction is simple:**
 
 > *"Add analytics to my URL shortener so I can see clicks per day."*
 
-AgentForge takes it from there:
+charles-agentic-ai-demo takes it from there:
 
 1. **Understands** the requirement (intent classification across greenfield, brownfield, bugfix, refactor, ambiguous, out-of-scope)
 2. **Clarifies** ambiguous prompts by presenting concrete engineering options rather than guessing or failing
@@ -214,6 +214,38 @@ python -m uvicorn main:app --port 8001 --host 127.0.0.1
 docker-compose up -d
 
 # URL shortener will be at http://localhost:8000
+```
+
+---
+
+## ☁️ Free Cloud Deployment (Share with End Users)
+
+You can deploy `charles-agentic-ai-demo` to free cloud platforms so evaluators and end users can interact with it directly in their browsers:
+
+### Option 1: Streamlit Community Cloud (Recommended — 100% Free Forever)
+1. Fork or push this repository to GitHub: [`https://github.com/chandramouli0929-sudo/Charles-demo`](https://github.com/chandramouli0929-sudo/Charles-demo)
+2. Go to **[share.streamlit.io](https://share.streamlit.io/)** and sign in with GitHub.
+3. Click **"New app"** and configure:
+   - **Repository:** `chandramouli0929-sudo/Charles-demo`
+   - **Branch:** `master`
+   - **Main file path:** `ui/streamlit_app.py`
+   - **App URL:** `charles-agentic-ai-demo.streamlit.app`
+4. Under **Advanced settings** → **Secrets**, add your API key:
+   ```toml
+   LLM_API_KEY = "your-gemini-or-openai-key"
+   LLM_PROVIDER = "gemini"
+   LLM_MODEL = "gemini-1.5-flash"
+   ```
+5. Click **"Deploy!"** — Streamlit automatically installs from `requirements.txt` and serves the app with a public HTTPS URL.
+
+### Option 2: Instant Public Tunnel (Share Local Run Instantly)
+To share your active local session with end users without deploying to cloud:
+```bash
+# Expose local Streamlit UI (port 8501) via localtunnel
+npx localtunnel --port 8501
+
+# Or expose via SSH localhost.run (no npm needed):
+ssh -R 80:localhost:8501 localhost.run
 ```
 
 ---
