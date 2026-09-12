@@ -168,9 +168,7 @@ def render_workflow_trace():
 def run_analysis(user_request: str):
     """Run the pre-approval analysis pipeline."""
     from app.graph.workflow import create_workflow
-    from langgraph.checkpoint.sqlite import SqliteSaver
     from app.config import settings
-    import sqlite3
 
     request_id = str(uuid.uuid4())
     st.session_state["request_id"] = request_id
@@ -189,10 +187,16 @@ def run_analysis(user_request: str):
         "workflow_trace": [],
     }
 
-    # Use SQLite checkpointer
-    db_path = settings.workflow_db_path
-    conn = sqlite3.connect(db_path, check_same_thread=False)
-    checkpointer = SqliteSaver(conn)
+    # Checkpointer: prefer SqliteSaver, fallback to MemorySaver
+    try:
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        import sqlite3
+        db_path = settings.workflow_db_path
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        checkpointer = SqliteSaver(conn)
+    except Exception:
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
 
     graph = create_workflow(checkpointer=checkpointer)
     config = {"configurable": {"thread_id": request_id}}
