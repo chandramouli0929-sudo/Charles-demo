@@ -626,6 +626,17 @@ def render_complete_phase():
         retries = state.get("retry_count", 0)
         st.metric("Remediation Attempts", retries)
 
+    # ── Quick Access Banner ──────────────────────────────────────────────────
+    ws_path = state.get("workspace_path", "")
+    st.info(
+        f"""
+**🚀 Access Your Built Application:**
+* **Interactive Swagger UI (API Docs):** [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) or [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* **Live Health Check:** [http://127.0.0.1:8001/health](http://127.0.0.1:8001/health)
+* **Workspace Directory on Disk:** `{ws_path}`
+        """
+    )
+
     st.markdown("---")
 
     tab1, tab2, tab3, tab4 = st.tabs(["📋 Summary", "📁 Generated Files", "🧪 Test Results", "⚖️ Risks & Trade-offs"])
