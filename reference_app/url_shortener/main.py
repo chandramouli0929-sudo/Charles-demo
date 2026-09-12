@@ -259,45 +259,81 @@ _UI_HTML = """<!DOCTYPE html>
     </header>
 
     <div class="card">
-      <form id="shortenForm" onsubmit="handleShorten(event)">
-        <div class="input-group" style="flex-direction: column;">
-          <input type="url" id="longUrl" placeholder="https://example.com/very/long/url..." required autofocus />
-          <div style="display: flex; gap: 12px; margin-top: 10px;">
-            <input type="text" id="customAlias" placeholder="Custom alias (optional, e.g. my-promo-link)" style="flex: 1;" />
-            <button type="submit" id="submitBtn">Shorten URL</button>
-          </div>
-        </div>
-      </form>
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <button id="tabSingleBtn" type="button" class="btn-secondary" onclick="switchMode('single')" style="background: var(--accent); color: white;">⚡ Single URL</button>
+        <button id="tabBatchBtn" type="button" class="btn-secondary" onclick="switchMode('batch')">📦 Batch Shorten (Multiple URLs)</button>
+      </div>
 
-      <div id="resultBox" class="result-box">
-        <div class="result-header">
-          <span>Shortened Link Created</span>
-          <span id="activeBadge" style="color: #3fb950;">● Active</span>
-        </div>
-        <div class="short-link-row">
-          <a id="shortLinkTag" class="short-url-text" target="_blank" href="#"></a>
-          <div class="action-btns">
-            <button class="btn-secondary" onclick="copyLink()">📋 Copy</button>
-            <a id="visitBtn" class="btn-visit" target="_blank" href="#">↗ Open</a>
+      <!-- Single URL Form -->
+      <div id="singleMode">
+        <form id="shortenForm" onsubmit="handleShorten(event)">
+          <div class="input-group" style="flex-direction: column;">
+            <input type="url" id="longUrl" placeholder="https://example.com/very/long/url..." autofocus />
+            <div style="display: flex; gap: 12px; margin-top: 10px;">
+              <input type="text" id="customAlias" placeholder="Custom alias (optional, e.g. my-promo-link)" style="flex: 1;" />
+              <button type="submit" id="submitBtn">Shorten URL</button>
+            </div>
           </div>
-        </div>
+        </form>
 
-        <div class="meta-details">
-          <div class="meta-item">
-            <div class="meta-label">Short Code</div>
-            <div class="meta-val" id="metaCode">-</div>
+        <div id="resultBox" class="result-box">
+          <div class="result-header">
+            <span>Shortened Link Created</span>
+            <span id="activeBadge" style="color: #3fb950;">● Active</span>
           </div>
-          <div class="meta-item">
-            <div class="meta-label">Total Clicks</div>
-            <div class="meta-val" id="metaClicks">0</div>
+          <div class="short-link-row">
+            <a id="shortLinkTag" class="short-url-text" target="_blank" href="#"></a>
+            <div class="action-btns">
+              <button class="btn-secondary" onclick="copyLink()">📋 Copy</button>
+              <a id="visitBtn" class="btn-visit" target="_blank" href="#">↗ Open</a>
+            </div>
           </div>
-          <div class="meta-item">
-            <div class="meta-label">URL ID</div>
-            <div class="meta-val" id="metaId">-</div>
+
+          <div class="meta-details">
+            <div class="meta-item">
+              <div class="meta-label">Short Code</div>
+              <div class="meta-val" id="metaCode">-</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">Total Clicks</div>
+              <div class="meta-val" id="metaClicks">0</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">URL ID</div>
+              <div class="meta-val" id="metaId">-</div>
+            </div>
+          </div>
+          <div style="text-align: right; margin-top: 10px;">
+            <button class="btn-secondary" onclick="refreshAnalytics()" style="padding: 4px 10px; font-size: 12px;">🔄 Refresh Clicks</button>
           </div>
         </div>
-        <div style="text-align: right; margin-top: 10px;">
-          <button class="btn-secondary" onclick="refreshAnalytics()" style="padding: 4px 10px; font-size: 12px;">🔄 Refresh Clicks</button>
+      </div>
+
+      <!-- Batch URL Form -->
+      <div id="batchMode" style="display: none;">
+        <form id="batchShortenForm" onsubmit="handleBatchShorten(event)">
+          <label style="font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block;">
+            Paste multiple URLs (one URL per line):
+          </label>
+          <textarea id="batchUrls" rows="6" style="width: 100%; background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--heading); font-family: monospace; font-size: 14px; outline: none; margin-bottom: 12px;" placeholder="https://github.com&#10;https://google.com&#10;https://news.ycombinator.com"></textarea>
+          <button type="submit" id="batchSubmitBtn" style="width: 100%;">📦 Shorten All URLs in Batch</button>
+        </form>
+
+        <div id="batchResultBox" style="margin-top: 20px; display: none;">
+          <h4 style="color: var(--primary); font-size: 14px; margin-bottom: 10px;">Batch Shortening Results:</h4>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--muted);">
+                  <th style="padding: 8px;">Original URL</th>
+                  <th style="padding: 8px;">Short Code</th>
+                  <th style="padding: 8px;">Short Link</th>
+                  <th style="padding: 8px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="batchTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -312,6 +348,24 @@ _UI_HTML = """<!DOCTYPE html>
   <script>
     let currentUrlId = null;
     let currentShortUrl = "";
+
+    function switchMode(mode) {
+      if (mode === 'single') {
+        document.getElementById('singleMode').style.display = 'block';
+        document.getElementById('batchMode').style.display = 'none';
+        document.getElementById('tabSingleBtn').style.background = 'var(--accent)';
+        document.getElementById('tabSingleBtn').style.color = 'white';
+        document.getElementById('tabBatchBtn').style.background = '#21262d';
+        document.getElementById('tabBatchBtn').style.color = 'var(--text)';
+      } else {
+        document.getElementById('singleMode').style.display = 'none';
+        document.getElementById('batchMode').style.display = 'block';
+        document.getElementById('tabBatchBtn').style.background = 'var(--accent)';
+        document.getElementById('tabBatchBtn').style.color = 'white';
+        document.getElementById('tabSingleBtn').style.background = '#21262d';
+        document.getElementById('tabSingleBtn').style.color = 'var(--text)';
+      }
+    }
 
     async function handleShorten(e) {
       e.preventDefault();
@@ -357,6 +411,57 @@ _UI_HTML = """<!DOCTYPE html>
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "Shorten URL";
+      }
+    }
+
+    async function handleBatchShorten(e) {
+      e.preventDefault();
+      const textarea = document.getElementById('batchUrls');
+      const submitBtn = document.getElementById('batchSubmitBtn');
+      const lines = textarea.value.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) {
+        alert("Please enter at least one URL.");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = `Shortening ${lines.length} URLs...`;
+
+      try {
+        const urlsPayload = lines.map(u => ({ url: u }));
+        const resp = await fetch('/api/v1/urls/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urls: urlsPayload })
+        });
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(errData.detail || ("HTTP error " + resp.status));
+        }
+        const data = await resp.json();
+        const tbody = document.getElementById('batchTableBody');
+        tbody.innerHTML = "";
+
+        data.items.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = "1px solid var(--border)";
+          tr.innerHTML = `
+            <td style="padding: 8px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <a href="${item.original_url}" target="_blank" style="color: var(--text);">${item.original_url}</a>
+            </td>
+            <td style="padding: 8px; font-weight: bold; color: var(--primary);">${item.short_code}</td>
+            <td style="padding: 8px;"><a href="${item.short_url}" target="_blank" style="color: #58a6ff;">${item.short_url}</a></td>
+            <td style="padding: 8px;"><a href="${item.short_url}" target="_blank" class="btn-visit" style="padding: 3px 8px; font-size: 11px;">↗ Open</a></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('batchResultBox').style.display = 'block';
+      } catch (err) {
+        alert("Batch shortening failed: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "📦 Shorten All URLs in Batch";
       }
     }
 

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from cache.redis_client import CacheClient, get_cache
 from db.database import get_db
-from models.url import URLCreate, URLResponse, URLAnalyticsResponse
+from models.url import URLCreate, URLResponse, URLAnalyticsResponse, URLBatchCreate, URLBatchResponse
 from services.analytics_service import AnalyticsService
 from services.url_service import URLService
 
@@ -48,6 +48,30 @@ async def create_url(
             base_url=base_url,
             custom_alias=payload.custom_alias,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/batch",
+    response_model=URLBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create multiple shortened URLs in batch",
+)
+async def create_urls_batch(
+    payload: URLBatchCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> URLBatchResponse:
+    base_url = _base_url(request)
+    items_to_process = [(str(u.url), u.custom_alias) for u in payload.urls]
+    try:
+        created_items = await _url_service.create_batch(
+            db=db,
+            items=items_to_process,
+            base_url=base_url,
+        )
+        return URLBatchResponse(total=len(created_items), items=created_items)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 

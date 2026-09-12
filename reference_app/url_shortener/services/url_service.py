@@ -101,6 +101,27 @@ class URLService:
             is_active=url_obj.is_active,
         )
 
+    async def create_batch(
+        self,
+        db: AsyncSession,
+        items: list[tuple[str, Optional[str]]],
+        base_url: str,
+    ) -> list[URLResponse]:
+        """
+        Create multiple shortened URLs in a single atomic transaction.
+        Each item is a tuple: (original_url, custom_alias).
+        """
+        responses: list[URLResponse] = []
+        for orig_url, custom_alias in items:
+            resp = await self.create_url(
+                db=db,
+                original_url=orig_url,
+                base_url=base_url,
+                custom_alias=custom_alias,
+            )
+            responses.append(resp)
+        return responses
+
     async def get_by_short_code(
         self,
         db: AsyncSession,

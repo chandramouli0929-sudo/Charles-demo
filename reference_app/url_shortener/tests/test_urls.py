@@ -116,3 +116,26 @@ async def test_create_url_duplicate_custom_alias(client: AsyncClient) -> None:
     )
     assert dup.status_code == 400
     assert "already in use" in dup.json()["detail"]
+
+
+async def test_create_urls_batch(client: AsyncClient) -> None:
+    payload = {
+        "urls": [
+            {"url": "https://batch-one.com", "custom_alias": "b-one"},
+            {"url": "https://batch-two.com", "custom_alias": "b-two"},
+            {"url": "https://batch-three.com"},
+        ]
+    }
+    response = await client.post("/api/v1/urls/batch", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["total"] == 3
+    assert len(data["items"]) == 3
+    assert data["items"][0]["short_code"] == "b-one"
+    assert data["items"][1]["short_code"] == "b-two"
+    assert len(data["items"][2]["short_code"]) == 7
+
+    # Verify redirection works for batch generated items
+    r1 = await client.get("/b-one", follow_redirects=False)
+    assert r1.status_code == 302
+    assert r1.headers["location"] == "https://batch-one.com"

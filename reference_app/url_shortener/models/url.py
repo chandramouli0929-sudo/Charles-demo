@@ -50,6 +50,17 @@ class URLResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class URLBatchCreate(BaseModel):
+    """Input schema for creating multiple shortened URLs in batch."""
+    urls: List[URLCreate]
+
+
+class URLBatchResponse(BaseModel):
+    """Response schema for batch URL creation."""
+    total: int
+    items: List[URLResponse]
+
+
 class ClickRecordBrief(BaseModel):
     """Minimal click record used inside analytics."""
     id: int
