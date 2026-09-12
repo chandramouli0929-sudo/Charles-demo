@@ -122,6 +122,8 @@ INSTRUCTIONS:
 
                 cleaned: dict[str, str] = {}
                 for k, v in result.items():
+                    if k in ("error", "raw"):
+                        continue
                     norm_k = k.replace("\\", "/").lstrip("./")
                     if norm_k.endswith("main.py"):
                         norm_k = "main.py"
