@@ -594,7 +594,15 @@ def render_executing_phase():
             ws_path = result.get("workspace_path")
             if ws_path and Path(ws_path, "main.py").exists():
                 try:
-                    import subprocess, sys
+                    import subprocess, sys, time
+                    # Free up port 8001 if an older run was holding it
+                    if sys.platform == "win32":
+                        subprocess.run(
+                            'powershell -Command "Get-NetTCPConnection -LocalPort 8001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"',
+                            shell=True,
+                            timeout=5,
+                        )
+                    time.sleep(0.5)
                     subprocess.Popen(
                         [sys.executable, "-m", "uvicorn", "main:app", "--port", "8001", "--host", "127.0.0.1"],
                         cwd=ws_path,
