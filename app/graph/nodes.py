@@ -45,6 +45,7 @@ def node_intent(state: EngineeringState) -> dict:
         "intent_reason": result["intent_reason"],
         "requires_clarification": result["requires_clarification"],
         "clarification_question": result["clarification_question"],
+        "clarification_options": result.get("clarification_options", []),
         "workflow_status": "running",
         "workflow_trace": _add_trace(state, "intent", "IntentAgent", "done", duration_ms),
     }

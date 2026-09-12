@@ -49,6 +49,7 @@ class EngineeringState(TypedDict, total=False):
     intent_reason: str             # Human-readable explanation of classification
     requires_clarification: bool
     clarification_question: str    # Question to ask user if ambiguous
+    clarification_options: list[str] # Concrete selectable options for user
     clarification_answered: bool
     clarification_answer: str      # User's answer to clarification
 

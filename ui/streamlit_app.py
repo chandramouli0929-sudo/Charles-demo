@@ -343,34 +343,51 @@ def render_clarifying_phase():
     st.markdown(f"**Your request:** `{state.get('user_request', '')}`")
     st.markdown("---")
 
-    st.markdown(f"**{state.get('clarification_question', 'Could you please clarify your requirement?')}**")
+    q = state.get("clarification_question", "Could you please clarify your requirement?")
+    st.markdown(f"### {q}")
 
+    options = state.get("clarification_options", [])
+    if not options:
+        options = [
+            "Optimize redirect throughput using Redis caching",
+            "Add high-volume batch URL creation with bulk insert",
+            "Add rate limiting to protect system endpoints",
+            "Implement PostgreSQL connection pooling & read replica support",
+        ]
+
+    st.markdown("**Suggested Options (click to select and proceed):**")
+    for idx, opt in enumerate(options):
+        if st.button(f"👉 {opt}", key=f"opt_btn_{idx}", use_container_width=True):
+            user_req = state.get("user_request", st.session_state.get("user_request", ""))
+            clarified = f"{user_req}. Specifically: {opt}"
+            st.session_state["user_request"] = clarified
+            st.session_state["phase"] = "analyzing"
+            for k in ["state", "workflow", "config", "request_id"]:
+                st.session_state[k] = {} if k == "state" else None
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("**Or write your own custom clarification:**")
     answer = st.text_area(
         "Your clarification:",
-        height=100,
-        placeholder="Please describe what you mean...",
+        height=90,
+        placeholder="e.g., I want to add batch URL creation so users can shorten multiple links at once...",
         key="clarification_input",
+        label_visibility="collapsed",
     )
 
     col1, col2 = st.columns([1, 3])
     with col1:
-        if st.button("✅ Submit Clarification", type="primary", disabled=not answer.strip()):
-            with st.spinner("Re-analyzing with your clarification..."):
-                try:
-                    result = resume_with_clarification(answer.strip())
-                    st.session_state["state"] = result
-                    wf_status = result.get("workflow_status", "")
-                    if wf_status == "waiting_approval":
-                        st.session_state["phase"] = "approval"
-                    else:
-                        st.session_state["phase"] = "complete"
-                    st.rerun()
-                except Exception as e:
-                    st.session_state["error"] = str(e)
-                    st.session_state["phase"] = "error"
-                    st.rerun()
+        if st.button("✅ Submit Custom Clarification", type="primary", disabled=not answer.strip(), use_container_width=True):
+            user_req = state.get("user_request", st.session_state.get("user_request", ""))
+            clarified = f"{user_req}. Specifically: {answer.strip()}"
+            st.session_state["user_request"] = clarified
+            st.session_state["phase"] = "analyzing"
+            for k in ["state", "workflow", "config", "request_id"]:
+                st.session_state[k] = {} if k == "state" else None
+            st.rerun()
     with col2:
-        if st.button("↩️ Start Over"):
+        if st.button("↩️ Start Over", use_container_width=True):
             for k in list(st.session_state.keys()):
                 del st.session_state[k]
             st.rerun()
@@ -634,6 +651,10 @@ def render_complete_phase():
     # Overall status
     if wf_status == "complete" or validation.get("passed"):
         st.success("## 🎉 IMPLEMENTATION VALIDATED")
+    elif wf_status == "out_of_scope":
+        st.warning("## 🚫 REQUEST OUT OF SCOPE")
+    elif wf_status == "waiting_clarification":
+        st.info("## ℹ️ AWAITING CLARIFICATION")
     else:
         st.error("## ❌ IMPLEMENTATION FAILED — See details below")
 

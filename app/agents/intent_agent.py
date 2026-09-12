@@ -40,9 +40,17 @@ EXAMPLES:
 - "The redirect is returning 500 errors" → bugfix, url_shortener, confidence: 0.94
 - "Add analytics dashboard" → brownfield, url_shortener, confidence: 0.90
 
-CLARIFICATION QUESTIONS (when ambiguous):
+CLARIFICATION QUESTIONS & OPTIONS (when ambiguous):
 Ask targeted questions about WHAT specifically needs to change, not yes/no questions.
-Example: "Which aspect of scalability? Redirect throughput, URL creation rate, analytics volume, or overall system?"
+Always provide 3 to 4 concrete, actionable engineering options the user can choose between.
+Example: 
+  Question: "Which aspect of scalability would you like to target?"
+  Options: [
+    "Optimize redirect throughput using Redis caching",
+    "Add high-volume batch URL creation with bulk insert",
+    "Add PostgreSQL connection pooling & read replica support",
+    "Implement rate limiting to prevent throughput degradation"
+  ]
 
 Respond ONLY with valid JSON (no markdown, no explanation):
 {
@@ -51,7 +59,8 @@ Respond ONLY with valid JSON (no markdown, no explanation):
   "confidence": 0.0-1.0,
   "intent_reason": "Brief explanation of why this classification was chosen",
   "requires_clarification": true | false,
-  "clarification_question": "Question to ask user if requires_clarification is true, else empty string"
+  "clarification_question": "Question to ask user if requires_clarification is true, else empty string",
+  "clarification_options": ["Option 1", "Option 2", "Option 3"]
 }
 """
 
@@ -68,7 +77,7 @@ class IntentAgent:
 
         Returns:
             dict with keys: domain, request_type, confidence, intent_reason,
-            requires_clarification, clarification_question
+            requires_clarification, clarification_question, clarification_options
         """
         logger.info("IntentAgent analyzing: %r", user_request[:100])
 
@@ -88,6 +97,7 @@ class IntentAgent:
                 "intent_reason": result.get("intent_reason", "Classification unclear."),
                 "requires_clarification": bool(result.get("requires_clarification", False)),
                 "clarification_question": result.get("clarification_question", ""),
+                "clarification_options": result.get("clarification_options", []),
             }
         except Exception as exc:
             logger.error("IntentAgent LLM call failed: %s — activating resilient domain classifier", exc)
@@ -148,4 +158,10 @@ class IntentAgent:
                     "intent_reason": "Request is too vague to determine exact technical scope.",
                     "requires_clarification": True,
                     "clarification_question": "Which aspect of the URL shortener would you like to build or modify?",
+                    "clarification_options": [
+                        "Build a full Greenfield URL shortener with FastAPI & Redis",
+                        "Add high-throughput batch URL shortening with multi-URL input",
+                        "Add custom alias / vanity short URLs",
+                        "Implement Redis caching and redirect analytics tracking"
+                    ],
                 }
