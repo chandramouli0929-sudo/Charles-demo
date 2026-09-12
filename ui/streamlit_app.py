@@ -630,10 +630,10 @@ def render_complete_phase():
     ws_path = state.get("workspace_path", "")
     st.info(
         f"""
-**🚀 Access Your Built Application:**
-* **Interactive Swagger UI (API Docs):** [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) or [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-* **Live Health Check:** [http://127.0.0.1:8001/health](http://127.0.0.1:8001/health)
-* **Workspace Directory on Disk:** `{ws_path}`
+**🚀 Launch Your Built Application:**
+* **🌐 Web Application UI:** 👉 [http://127.0.0.1:8001/](http://127.0.0.1:8001/) *(or [http://127.0.0.1:8000/](http://127.0.0.1:8000/))*
+* **📖 Interactive API Docs (Swagger):** [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+* **📂 Workspace Directory on Disk:** `{ws_path}`
         """
     )
 
