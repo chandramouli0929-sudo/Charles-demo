@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -10,11 +11,12 @@ def _run_git(args: list[str], cwd: str, timeout: int = 15) -> tuple[bool, str]:
     """Run a git command and return (success, output)."""
     try:
         result = subprocess.run(
-            ["git"] + args,
+            ["git", "--no-pager"] + args,
             cwd=cwd,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env={**os.environ, "GIT_PAGER": "cat"},
         )
         return result.returncode == 0, (result.stdout + result.stderr).strip()
     except FileNotFoundError:
@@ -47,6 +49,9 @@ def git_log(repo_path: str, n: int = 5) -> str:
 def git_init(repo_path: str) -> bool:
     Path(repo_path).mkdir(parents=True, exist_ok=True)
     ok, _ = _run_git(["init", repo_path], cwd=repo_path)
+    if ok:
+        _run_git(["-C", repo_path, "config", "user.email", "agentforge@demo.com"], cwd=repo_path)
+        _run_git(["-C", repo_path, "config", "user.name", "AgentForge"], cwd=repo_path)
     return ok
 
 

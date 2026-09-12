@@ -338,9 +338,16 @@ def node_validation(state: EngineeringState) -> dict:
 
     validation_results = agent.validate(state_dict)
 
+    # Mark validation tasks done
+    task_graph = state.get("task_graph", [])
+    for task in task_graph:
+        if task.get("agent") in ("validation", "qa"):
+            task["status"] = "done"
+
     duration_ms = int((time.time() - start) * 1000)
     return {
         "validation_results": validation_results,
+        "task_graph": task_graph,
         "workflow_trace": _add_trace(
             state, "validation", "ValidationAgent",
             "done" if validation_results.get("passed") else "failed",
