@@ -46,6 +46,8 @@ Thumbs.db
 
 # Project-specific
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 agentforge_workflow.db
