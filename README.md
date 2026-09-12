@@ -4,7 +4,7 @@
 >
 > Give it a requirement in plain English. It understands, plans, asks for your approval, builds, tests, and validates — automatically.
 
-[![CI](https://github.com/your-username/agentforge/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/agentforge/actions)
+[![CI](https://github.com/chandramouli0929-sudo/Charles-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/chandramouli0929-sudo/Charles-demo/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -20,16 +20,17 @@ AgentForge is a prototype agentic software engineering system that transforms a 
 
 AgentForge takes it from there:
 
-1. **Understands** the requirement (brownfield enhancement to URL shortener)
-2. **Analyzes** the existing codebase
-3. **Designs** the architecture and decomposes tasks
-4. **Asks for your approval** — showing the full plan before writing a line of code
-5. **Implements** the change with targeted code modifications
-6. **Tests** the implementation
-7. **Validates** results with actual evidence
-8. **Produces** a structured engineering outcome with diff, test results, and risks
+1. **Understands** the requirement (intent classification across greenfield, brownfield, bugfix, refactor, ambiguous, out-of-scope)
+2. **Clarifies** ambiguous prompts by presenting concrete engineering options rather than guessing or failing
+3. **Analyzes** the existing codebase using deterministic tools (AST, directory scanning, git log)
+4. **Designs** the architecture and decomposes tasks into a dependency DAG
+5. **Asks for your approval** — showing the full plan, risks, and trade-offs before writing a single line of code
+6. **Implements** the change with targeted code generation or modification
+7. **Tests** the implementation with automated pytest suites
+8. **Validates** results with actual execution evidence (syntax check, test run, requirement matching)
+9. **Produces** a structured engineering outcome with git diff, test results, and live running web application
 
-**You never select a workflow type.** The system figures it out.
+**You never select a workflow type manually.** The system figures it out.
 
 ---
 
@@ -44,22 +45,23 @@ flowchart TD
         A1[Intent Agent] --> A2[Scope Gate]
         A2 --> |in-scope| A3[Requirement Agent]
         A2 --> |out-of-scope| END1[Safe Termination]
-        A2 --> |ambiguous| CL[Clarification Loop]
-        CL --> A3
-        A3 --> A4{Brownfield?}
+        A2 --> |ambiguous| CL[Clarification Options Loop]
+        CL --> |User selects option / input| A1
+        A3 --> A4{Brownfield / Bugfix / Refactor?}
         A4 --> |yes| A5[Repository Agent]
         A4 --> |no| A6[Architecture Agent]
         A5 --> A6
         A6 --> A7[Planner Agent]
-        A7 --> GATE{HUMAN APPROVAL}
+        A7 --> GATE{HUMAN APPROVAL GATE}
         GATE --> |approved| A8[Coding Agent]
-        GATE --> |rejected| END2[Plan Modified]
+        GATE --> |modify / reject| END2[Plan Modified / Restarted]
         A8 --> A9[Test Agent]
         A9 --> A10[Validation Agent]
-        A10 --> |pass| A11[Summary]
-        A10 --> |fail + retry| A8
+        A10 --> |pass| A11[Summary Agent]
+        A10 --> |fail + retry < max| A12[Remediation Agent]
+        A12 --> A9
         A10 --> |max retries| A11
-        A11 --> END3([Engineering Outcome])
+        A11 --> END3([Engineering Outcome & Auto-Launch])
     end
 ```
 
@@ -69,14 +71,16 @@ flowchart TD
 
 | Agent | Responsibility |
 |-------|---------------|
-| **Intent Agent** | Classifies user intent: greenfield / brownfield / bugfix / refactor / ambiguous / out-of-scope |
-| **Requirement Agent** | Normalizes requirement, extracts functional/non-functional requirements, assumptions, acceptance criteria |
-| **Repository Agent** | Inspects existing codebase using deterministic tools (AST, file listing, git log) |
-| **Architecture Agent** | Designs solution architecture, API contracts, data model |
-| **Planner Agent** | Generates dependency-aware task DAG with risks and validation strategy |
-| **Coding Agent** | Generates new code (greenfield) or modifies existing files (brownfield/bugfix/refactor) |
-| **Test Agent** | Generates and runs pytest test suites |
-| **Validation Agent** | Validates outputs with actual execution evidence (syntax check, test run, requirement matching) |
+| **Intent Agent** | Classifies user intent: greenfield / brownfield / bugfix / refactor / ambiguous / out-of-scope. Generates 3-4 concrete options when ambiguous. |
+| **Requirement Agent** | Normalizes requirement, extracts functional/non-functional requirements, assumptions, acceptance criteria. |
+| **Repository Agent** | Inspects existing codebase using deterministic tools (AST, file listing, git log). |
+| **Architecture Agent** | Designs solution architecture, API contracts, data model, trade-offs, and risks. |
+| **Planner Agent** | Generates dependency-aware task DAG with validation criteria and risk mitigations. |
+| **Coding Agent** | Generates new code (greenfield) or modifies existing files (brownfield/bugfix/refactor) and writes to disk. |
+| **Test Agent** | Generates and runs pytest test suites with automated failure reporting. |
+| **Validation Agent** | Validates outputs with actual execution evidence (syntax check, test results, requirement matching). |
+| **Remediation Agent** | Diagnoses test failures and applies automated code repairs. |
+| **Summary Agent** | Compiles structured engineering report (tasks, diff, test results, risks). |
 
 ---
 
@@ -86,27 +90,29 @@ AgentForge uses **LangGraph** as its orchestration framework. Key features used:
 
 - **Conditional routing** — workflow path determined by structured state, not hard-coded sequences
 - **Human-in-the-loop** — `interrupt()` pauses execution at the approval gate
-- **Checkpointing** — SQLite-backed state persistence allows workflow resumption
-- **Retry loops** — failed validation triggers remediation (max 2 attempts)
+- **Checkpointing** — SQLite-backed state persistence (`SqliteSaver`) allows workflow resumption
+- **Retry loops** — failed validation triggers automated remediation (up to 2 attempts)
 - **Structured state** — all agents communicate via `EngineeringState` TypedDict
+- **Interactive options loop** — ambiguous inputs present suggested options and restart a clean analysis cycle
 
 ---
 
 ## URL Shortener Reference Application
 
-The mandatory reference app is a production-quality FastAPI URL shortener.
+The reference app is a production-quality FastAPI URL shortener with both API endpoints and a web user interface.
 
 ### APIs
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/urls` | Create a short URL |
-| `GET` | `/{short_code}` | Redirect to original URL |
-| `GET` | `/api/v1/urls/{id}` | Get URL details |
-| `GET` | `/api/v1/urls/{id}/analytics` | Click analytics |
-| `DELETE` | `/api/v1/urls/{id}` | Deactivate URL |
-| `GET` | `/health` | Health check |
-| `GET` | `/docs` | OpenAPI documentation |
+| `POST` | `/api/v1/urls/` | Create a short URL (supports deterministic hash or user-defined `custom_alias`) |
+| `POST` | `/api/v1/urls/batch` | Batch create multiple short URLs in a single atomic transaction |
+| `GET` | `/{short_code}` | Redirect (HTTP 302) to original URL (cached in Redis/in-memory) |
+| `GET` | `/api/v1/urls/{id}` | Get URL details and metadata |
+| `GET` | `/api/v1/urls/{id}/analytics` | Click analytics (total clicks, clicks today, recent referral events) |
+| `DELETE` | `/api/v1/urls/{id}` | Deactivate URL (returns HTTP 410 Gone on subsequent redirect attempts) |
+| `GET` | `/health` | Health check probe (`{"status":"healthy","service":"url-shortener"}`) |
+| `GET` | `/docs` | Interactive OpenAPI Swagger documentation |
 
 ### Key Design Decisions
 
@@ -164,11 +170,11 @@ CREATE TABLE clicks (
 - Git
 - (Optional) Docker for PostgreSQL + Redis
 
-### Quick Start — SQLite Mode (Recommended for Demo)
+#### Quick Start — SQLite Mode (Recommended for Demo)
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/agentforge.git
+git clone https://github.com/chandramouli0929-sudo/Charles-demo.git
 cd agentforge
 
 # 2. Create virtual environment
@@ -183,18 +189,23 @@ pip install -e ".[dev]"
 copy .env.example .env
 # Edit .env — set your LLM_API_KEY
 
-# 5. Run the AgentForge UI
-streamlit run ui/streamlit_app.py
+# 5. Run the AgentForge Control Center UI
+streamlit run ui/streamlit_app.py --server.port 8501
+# Open: http://localhost:8501
 ```
 
-### Run the URL Shortener Standalone
+### Run the URL Shortener Application Directly
 
 ```bash
-# SQLite mode (no Docker)
-uvicorn reference_app.url_shortener.main:app --reload --port 8000
+# SQLite mode (no Docker required)
+cd reference_app/url_shortener
+python -m uvicorn main:app --port 8001 --host 127.0.0.1
 
-# Visit: http://localhost:8000/docs
+# Visit Web App UI: http://127.0.0.1:8001/
+# Interactive API Docs: http://127.0.0.1:8001/docs
 ```
+
+> **Note on Automatic Execution:** When you approve an engineering plan inside AgentForge, the system automatically launches the generated application on port `8001` and provides direct links inside the UI.
 
 ### With Docker (PostgreSQL + Redis)
 
@@ -216,9 +227,9 @@ Watch AgentForge:
 - Classify as GREENFIELD (new build)
 - Design FastAPI + SQLite + Redis architecture
 - Create 6-task dependency DAG
-- Wait for your approval
-- Generate complete working application
-- Run tests, show outcome
+- Wait for your approval at the Human Approval Gate
+- Generate complete working application with vanity alias and batch endpoints
+- Automatically launch on port 8001, run tests, and show live links
 
 ### Demo 2 — Brownfield Enhancement
 Enter: `"Add rate limiting to the URL creation endpoint."`
@@ -251,13 +262,18 @@ Watch AgentForge:
 - Propose safe refactoring (extract analytics service)
 - After approval: refactor + verify behavior unchanged
 
-### Demo 5 — Ambiguous Requirement
+### Demo 5 — Ambiguous Requirement (Options & Clarification)
 Enter: `"Make the URL shortener scalable."`
 
 Watch AgentForge:
 - Detect AMBIGUITY
-- Ask clarifying question
-- Proceed only after clear answer
+- Instead of building blindly or crashing, present concrete architectural options:
+  - *Optimize redirect throughput using Redis caching*
+  - *Add high-volume batch URL creation with bulk insert*
+  - *Add rate limiting to protect system endpoints*
+  - *Implement PostgreSQL connection pooling & read replica support*
+- Click any suggested option (or type custom input)
+- Observe AgentForge re-analyzing with the chosen direction and cleanly pausing at the Approval Gate
 
 ### Demo 6 — Out of Scope
 Enter: `"Build me a payroll management system."`
@@ -272,16 +288,14 @@ Watch AgentForge:
 ## Running Tests
 
 ```bash
+# URL shortener tests (16 comprehensive tests)
+cd reference_app/url_shortener
+python -m pytest tests/ -v
+
 # All unit tests (no API key required)
 pytest tests/unit/ -v
 
-# URL shortener tests
-pytest reference_app/url_shortener/tests/ -v
-
-# All tests
-pytest tests/ -v
-
-# With coverage
+# All tests with coverage
 pytest tests/ --cov=app --cov-report=html
 ```
 
@@ -298,7 +312,7 @@ LLM_API_KEY=your-key-here
 LLM_PLANNER_MODEL=gemini-1.5-pro  # smarter model for planning
 ```
 
-For OpenAI-compatible servers (vLLM, LM Studio):
+For OpenAI-compatible servers (vLLM, LM Studio, Ollama):
 ```env
 LLM_PROVIDER=openai_compatible
 LLM_BASE_URL=http://localhost:11434/v1
@@ -311,23 +325,28 @@ LLM_API_KEY=not-needed
 
 | Limitation | Reason | Future Improvement |
 |------------|--------|-------------------|
-| Gemini API key needed | LLM calls required for agents | Support local models via ollama |
-| SQLite by default | Simpler setup for demo | Full PostgreSQL mode via Docker |
+| Gemini API key needed | LLM calls required for agents | Support local models via Ollama |
+| SQLite by default | Simpler setup for zero-dependency demo | Full PostgreSQL mode via Docker |
 | No real sandbox isolation | Prototype scope | Docker-based workspace isolation |
 | Brownfield changes written to disk | Demo simplicity | Git branch + PR workflow |
-| Validation requires test execution | Need correct test env | CI integration |
-| Analytics stored in PostgreSQL | Prototype simplicity | Kafka + async pipeline at scale |
+| In-memory fallback for Redis | Zero Docker dependency for demo | Full Redis cluster in production |
+| Analytics stored in DB | Prototype simplicity | Kafka + async click stream pipeline at scale |
 
 ---
 
 ## Architecture Decision Records
 
 See [docs/decisions.md](docs/decisions.md) for detailed ADRs covering:
-- Why LangGraph
-- Why deterministic repository tools
-- Why SQLite default
-- Why not Kafka
-- Why Streamlit
+- **ADR-001:** Why LangGraph for Orchestration
+- **ADR-002:** Why Deterministic Repository Tools (AST, git log, ripgrep)
+- **ADR-003:** Why SQLite as Default Database
+- **ADR-004:** Why Not Kafka for Prototype
+- **ADR-005:** Why Streamlit for UI
+- **ADR-006:** Deterministic Short Code Generation (SHA-256 + base62)
+- **ADR-007:** Workspace Directories vs Docker Sandbox
+- **ADR-008:** Interactive Clarification with Concrete Options vs Blind Execution
+- **ADR-009:** Vanity Aliases & Atomic Batch Creation Architecture
+- **ADR-010:** Re-analysis Cycle vs Mid-Graph Resume for Ambiguous Requirements
 
 ---
 

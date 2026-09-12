@@ -119,3 +119,44 @@ def generate_short_code(url: str, length: int = 7) -> str:
 - Security note documented: prototype sandbox is NOT a multi-tenant security boundary
 
 **Future improvement:** Docker-based workspace isolation with restricted syscalls, time limits, and network isolation.
+
+---
+
+## ADR-008: Interactive Clarification with Concrete Options vs. Blind Execution
+
+**Decision:** When requirements are ambiguous, the Intent Agent must not fail or build blindly; it must generate concrete engineering options and present them as interactive choices to the user.
+
+**Context:** Users often give underspecified requirements (e.g., *"Make the URL shortener scalable"*). In real-world software engineering, an agent should neither guess blindly (risking building the wrong system) nor abort with a generic error (poor UX).
+
+**Reasoning:**
+- Presenting 3–4 concrete engineering options (e.g., Redis redirect caching, batch URL creation, connection pooling, rate limiting) guides the user to a viable architecture.
+- Clickable option buttons in the UI reduce user cognitive friction while maintaining strict alignment before code generation.
+- The user retains the ability to supply custom freeform text if their intent differs from the suggestions.
+
+**Trade-off:** Requires a two-stage interaction for ambiguous inputs rather than immediate code generation, but prevents wasted token expenditure and erroneous implementations.
+
+---
+
+## ADR-009: Vanity Aliases & Atomic Batch Creation Architecture
+
+**Decision:** Support user-defined custom aliases alongside deterministic hashing, and provide an atomic batch URL creation endpoint.
+
+**Context:** Users require both human-readable vanity links (e.g., `short.ly/marketing-q3`) and the ability to shorten multiple URLs simultaneously.
+
+**Reasoning:**
+- **Custom Vanity Aliases:** If `custom_alias` is provided in `POST /api/v1/urls/`, validate against collisions. If already taken, return HTTP 400 Bad Request with a clear message. If omitted, fall back to deterministic SHA-256 base62 hashing.
+- **Atomic Batch Creation:** `POST /api/v1/urls/batch` accepts a list of URL definitions. Database writes occur in a single transaction (`session.commit()` on all items or rollback on integrity failure), ensuring no partial batch state.
+- **Cache Invalidation / Warmup:** Batch creations immediately register the short codes in the cache for high-throughput redirect resolution.
+
+---
+
+## ADR-010: Re-analysis Cycle vs. Mid-Graph Resume for Ambiguous Requirements
+
+**Decision:** Ambiguous requests that receive clarification restart analysis with an enriched requirement rather than attempting in-flight graph resumption.
+
+**Context:** In LangGraph, pausing at an ambiguous state and attempting to resume via `Command(resume=...)` on an already-terminated thread can cause state desynchronization, empty task graphs (0/0 tasks completed), or false validation failures.
+
+**Reasoning:**
+- When the user selects a clarification option, the prompt is updated (e.g., `"{original_request}. Specifically: {selected_option}"`).
+- Resetting state and running a clean `run_analysis` pass allows `RequirementAgent`, `RepositoryAgent`, `ArchitectureAgent`, and `PlannerAgent` to execute sequentially with the complete context.
+- The generated task DAG, validation criteria, and architecture accurately reflect the chosen direction, cleanly pausing at the `Approval Gate` before any code is generated.
