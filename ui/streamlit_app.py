@@ -589,6 +589,21 @@ def render_executing_phase():
             result = resume_workflow("approved")
             st.session_state["state"] = result
             st.session_state["phase"] = "complete"
+
+            # Automatically launch the generated workspace application on port 8001
+            ws_path = result.get("workspace_path")
+            if ws_path and Path(ws_path, "main.py").exists():
+                try:
+                    import subprocess, sys
+                    subprocess.Popen(
+                        [sys.executable, "-m", "uvicorn", "main:app", "--port", "8001", "--host", "127.0.0.1"],
+                        cwd=ws_path,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                except Exception:
+                    pass
+
             progress_placeholder.empty()
             st.rerun()
         except Exception as e:

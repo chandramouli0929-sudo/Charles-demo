@@ -202,10 +202,8 @@ def node_coding(state: EngineeringState) -> dict:
     request_id = state.get("request_id", str(uuid.uuid4())[:8])
     req_type = state.get("request_type", "greenfield")
 
-    if req_type in ("brownfield", "bugfix", "refactor"):
-        workspace_path = str(settings.reference_repo_abs_path)
-    else:
-        workspace_path = str(Path(f"./generated_workspace/{request_id}").resolve())
+    # Each execution gets its own isolated workspace
+    workspace_path = str(Path(f"./generated_workspace/{request_id}").resolve())
 
     agent = CodingAgent()
     generated_files = agent.execute(dict(state))

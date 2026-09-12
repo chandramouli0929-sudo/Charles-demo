@@ -6,20 +6,23 @@ Supports: Gemini, OpenAI, Anthropic, OpenAI-compatible (vLLM, etc.)
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
 from app.llm.base import BaseLLMProvider
 
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Gemini Provider
 # ─────────────────────────────────────────────────────────────────────────────
 FALLBACK_MODELS = [
-    "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-3.1-flash-lite",
     "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-pro-preview",
+    "gemini-3.6-flash",
     "gemma-4-26b-a4b-it",
 ]
 
